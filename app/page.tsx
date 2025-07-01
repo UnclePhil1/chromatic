@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { sendBetToEscrow, payoutToWinner } from "./escrow";
 import { supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 // --- Types ---
 type Player = {
@@ -606,7 +607,10 @@ export default function ChromaticRingsGame() {
   // --- Main Menu ---
   if (gamePhase === "menu") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col items-center justify-center p-4">
+        <Link href={'/start'} className="bg-white rounded-md p-2 my-2">
+          How to play
+        </Link>
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold text-purple-700">
