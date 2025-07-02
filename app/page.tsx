@@ -607,78 +607,93 @@ export default function ChromaticRingsGame() {
   // --- Main Menu ---
   if (gamePhase === "menu") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col items-center justify-center p-4">
-        <Link href={'/start'} className="bg-white rounded-md p-2 my-2">
-          How to play
+      <div
+        className="relative min-h-screen flex flex-col items-center justify-center px-4"
+        style={{ backgroundImage: "url('/moon.png')" }}
+      >
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
+
+        {/* Top CTA */}
+        <Link
+          href="/start"
+          className="z-10 mt-4 mb-6 px-4 py-2 text-sm font-medium text-[#00d4aa] bg-white/10 backdrop-blur border border-[#00d4aa]/30 rounded-md hover:bg-[#00d4aa]/10 transition"
+        >
+          How to Play
         </Link>
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold text-purple-700">
+
+        {/* Form Card */}
+        <div className="relative z-10 w-full max-w-md bg-[#151e28] border border-[#00d4aa]/20 rounded-2xl shadow-xl p-6 space-y-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-extrabold text-[#00d4aa]">
               Chromatic Rings
-            </CardTitle>
-            <p className="text-sm text-gray-600">
-              Organize colored rings into monochromatic towers!
+            </h1>
+            <p className="text-sm text-gray-400 mt-1">
+              Stack the rings into matching color towers
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
-              <p className="text-xs text-blue-700">
-                <strong>Cross-Browser Ready:</strong> Share room codes to play
-                with friends on different devices!
-              </p>
-              <WalletMultiButtonDynamic />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
-              <Input
-                placeholder="Enter your username"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-3">
-              <Input
-                placeholder="Bet amount in $GOR"
-                value={betAmount}
-                onChange={(e) =>
-                  setBetAmount(e.target.value.replace(/[^0-9.]/g, ""))
-                }
-              />
-              <Button
-                onClick={hostGame}
-                className="w-full"
-                disabled={!playerName.trim() || !betAmount.trim()}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Host New Game
-              </Button>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-500">Or</span>
-                </div>
+          </div>
+
+          <div className="bg-[#00d4aa]/10 border border-[#00d4aa]/20 p-4 text-xs text-[#00d4aa] rounded-md">
+            <strong className="text-[#00d4aa]">Cross-Browser:</strong> Share
+            room codes with friends and play anywhere!
+          </div>
+
+          <WalletMultiButtonDynamic />
+
+          {/* Inputs */}
+          <div className="space-y-4">
+            <Input
+              placeholder="Enter your username"
+              className="bg-[#151e28] border border-[#00d4aa]/30 text-white placeholder:text-[#00d4aa]/50 focus:ring-[#00d4aa]"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+            />
+
+            <Input
+              placeholder="Bet amount in $GOR"
+              className="bg-[#151e28] border border-[#00d4aa]/30 text-white placeholder:text-[#00d4aa]/50 focus:ring-[#00d4aa]"
+              value={betAmount}
+              onChange={(e) =>
+                setBetAmount(e.target.value.replace(/[^0-9.]/g, ""))
+              }
+            />
+
+            <Button
+              onClick={hostGame}
+              disabled={!playerName.trim() || !betAmount.trim()}
+              className="w-full bg-[#00d4aa] hover:bg-[#00d4aa]/50 text-black font-bold rounded-lg shadow transition"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Host New Game
+            </Button>
+
+            {/* Divider */}
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#00d4aa]/20" />
               </div>
-              <div className="space-y-2">
-                <Input
-                  placeholder="Enter room code"
-                  value={joinRoomCode}
-                  onChange={(e) =>
-                    setJoinRoomCode(e.target.value.toUpperCase())
-                  }
-                />
-                <Button
-                  onClick={joinGame}
-                  className="w-full"
-                  disabled={!playerName.trim() || !joinRoomCode.trim()}
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Join Game
-                </Button>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-[#151e28] px-2 text-[#00d4aa]/60">or</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <Input
+              placeholder="Enter room code"
+              className="bg-[#151e28] border border-[#00d4aa]/30 text-white placeholder:text-[#00d4aa]/50 focus:ring-[#00d4aa]"
+              value={joinRoomCode}
+              onChange={(e) => setJoinRoomCode(e.target.value.toUpperCase())}
+            />
+
+            <Button
+              onClick={joinGame}
+              disabled={!playerName.trim() || !joinRoomCode.trim()}
+              className="w-full bg-[#00d4aa] hover:bg-[#00d4aa]/50 text-black font-bold rounded-lg shadow transition"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Join Game
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -686,46 +701,56 @@ export default function ChromaticRingsGame() {
   // --- Lobby ---
   if (gamePhase === "lobby") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-purple-700">
+      <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden">
+        {/* Fullscreen Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/moon.png')" }}
+        />
+
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
+
+        {/* Foreground Content */}
+        <Card className="relative z-10 w-full max-w-md mx-auto bg-[#151e28] border border-[#00d4aa]/20 text-white shadow-2xl rounded-2xl px-6 py-8">
+          <CardHeader className="text-center space-y-1">
+            <CardTitle className="text-3xl font-bold text-[#00d4aa]">
               Game Lobby
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+
+          <CardContent className="space-y-6">
+            {/* Room Info */}
             <div className="text-center space-y-3">
-              <Badge variant="outline" className="text-lg px-4 py-2">
+              <Badge className="text-md px-4 py-1 border border-[#00d4aa]/30 text-[#00d4aa] bg-transparent rounded-full">
                 Room: {roomCode}
               </Badge>
-              <div>
-                <Badge variant="outline" className="text-lg px-4 py-2">
-                  Bet:{" "}
-                  {players.length > 0 && players[0]?.gameState
-                    ? Number(betAmount).toLocaleString() + " GOR"
-                    : "N/A"}
-                </Badge>
-              </div>
+
+              <Badge className="text-md px-4 py-1 border border-[#00d4aa]/30 text-[#00d4aa] bg-transparent rounded-full">
+                Bet:{" "}
+                {players.length > 0 && players[0]?.gameState
+                  ? Number(betAmount).toLocaleString() + " GOR"
+                  : "N/A"}
+              </Badge>
+
               {currentPlayer?.isHost && (
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-neutral-400">
                     Share with your friend:
                   </p>
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
                       onClick={copyRoomCode}
-                      className="flex-1"
+                      className="flex-1 border border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition"
                     >
                       <Copy className="w-4 h-4 mr-2" />
                       {showCopied ? "Copied!" : "Copy Code"}
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
                       onClick={copyGameLink}
-                      className="flex-1"
+                      className="flex-1 border border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition"
                     >
                       <Share className="w-4 h-4 mr-2" />
                       Copy Link
@@ -734,24 +759,31 @@ export default function ChromaticRingsGame() {
                 </div>
               )}
             </div>
+
+            {/* Player List */}
             <div className="space-y-4">
               <div className="text-center">
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-sm text-neutral-400 mb-2">
                   Players ({players.length}/2)
                 </p>
                 <div className="space-y-2">
                   {players.map((player) => (
                     <div
                       key={player.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-[#00d4aa]/5 border border-[#00d4aa]/10 rounded-lg"
                     >
-                      <span className="font-medium">{player.name}</span>
+                      <span className="font-medium text-white">
+                        {player.name}
+                      </span>
                       <div className="flex items-center gap-2">
                         {player.isHost && (
-                          <Crown className="w-4 h-4 text-yellow-500" />
+                          <Crown className="w-4 h-4 text-yellow-400" />
                         )}
                         {player.id === currentPlayer?.id && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-[#00d4aa]/30 text-white"
+                          >
                             You
                           </Badge>
                         )}
@@ -759,38 +791,53 @@ export default function ChromaticRingsGame() {
                     </div>
                   ))}
                   {players.length < 2 && (
-                    <div className="p-3 bg-gray-100 rounded-lg text-center text-gray-500 border-2 border-dashed border-gray-300">
+                    <div className="p-3 text-center text-sm text-[#00d4aa]/70 border-2 border-dashed border-[#00d4aa]/20 rounded-lg bg-[#00d4aa]/5">
                       Waiting for player...
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Escrow Status */}
               {escrowStatus === "funding" && (
-                <div className="text-center text-blue-700">
-                  Please approve the transaction in your Backpack wallet to fund
-                  the bet escrow.
+                <div className="text-center text-yellow-300">
+                  Please approve the transaction in your wallet to fund the bet
+                  escrow.
                 </div>
               )}
               {escrowStatus === "funded" && (
-                <div className="text-center text-green-700">
+                <div className="text-center text-green-400">
                   Bet escrow funded! Waiting for both players...
                 </div>
               )}
               {escrowStatus === "error" && (
-                <div className="text-center text-red-700">{escrowError}</div>
+                <div className="text-center text-red-500">{escrowError}</div>
               )}
+
+              {/* Start Game Button */}
               {currentPlayer?.isHost && players.length === 2 && (
-                <Button onClick={startGame} className="w-full">
+                <Button
+                  onClick={startGame}
+                  className="w-full bg-[#00d4aa] text-black font-semibold hover:bg-[#d7f899] transition"
+                >
                   <Play className="w-4 h-4 mr-2" />
                   Start Game
                 </Button>
               )}
+
+              {/* Waiting Text */}
               {!currentPlayer?.isHost && (
-                <p className="text-center text-sm text-gray-600">
+                <p className="text-center text-sm text-neutral-400">
                   Waiting for host to start the game...
                 </p>
               )}
-              <Button variant="outline" onClick={resetGame} className="w-full">
+
+              {/* Leave Game Button */}
+              <Button
+                variant="ghost"
+                onClick={resetGame}
+                className="w-full mt-2 border border-[#00d4aa]/30 bg-[#00d4aa]/10 text-[#00d4aa] hover:bg-[#00d4aa]/20 transition"
+              >
                 Leave Game
               </Button>
             </div>
@@ -812,8 +859,12 @@ export default function ChromaticRingsGame() {
         players.some((p) => p.isWinner && escrowError === "paid"));
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md text-center">
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{ backgroundImage: "url('/moon.png " }}
+      >
+        <div className="absolute inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
+        <Card className="w-full max-w-md text-center z-50">
           <CardHeader>
             <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
             <CardTitle className="text-2xl font-bold">
@@ -878,7 +929,8 @@ export default function ChromaticRingsGame() {
   // --- Game Playing (with countdown overlay) ---
   if (!currentPlayer) return null;
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
+    <div className="min-h-screen p-4" style={{ backgroundImage: "url('/moon.png " }}>
+        <div className="absolute h-full inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
       {gamePhase === "countdown" && <CountdownOverlay />}
       {invalidMoveMessage && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40">
@@ -944,7 +996,7 @@ export default function ChromaticRingsGame() {
             <Button
               variant="outline"
               onClick={resetGame}
-              className="w-full text-white border-white hover:bg-white/20"
+              className="w-full bg-[#00d4aa] text-white hover:bg-[#00d4aa]/50"
             >
               Leave Game
             </Button>
