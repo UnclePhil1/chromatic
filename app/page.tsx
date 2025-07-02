@@ -22,13 +22,19 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@gorbagana/web3.js";
 import { toast } from "sonner";
-import { sendBetToEscrow, payoutToWinnerWithKey, ESCROW_PUBLIC_KEY, ESCROW_SECRET_BASE58 } from "./escrow";
+import {
+  sendBetToEscrow,
+  payoutToWinnerWithKey,
+  ESCROW_PUBLIC_KEY,
+  ESCROW_SECRET_BASE58,
+} from "./escrow";
 import { supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
-
+import { updatePlatformStats, updateLeaderboard } from "../lib/stats";
+import PlatformStats from "../components/statsUi";
 
 // --- Types ---
 type Player = {
@@ -239,7 +245,9 @@ export default function ChromaticRingsGame() {
         setJoinRoomCode(state.joinRoomCode || "");
         setCountdownValue(state.countdownValue || 5);
         setBetAmount(state.betAmount || "");
-        setEscrowWallet(state.escrowWallet ? new PublicKey(state.escrowWallet) : null);
+        setEscrowWallet(
+          state.escrowWallet ? new PublicKey(state.escrowWallet) : null
+        );
         setEscrowStatus(state.escrowStatus || "idle");
         setHostRoomCode(state.hostRoomCode || null);
         setRoomData(state.roomData || null);
@@ -359,10 +367,25 @@ export default function ChromaticRingsGame() {
         roomData.betAmount! * 2, // Both players' bets
         ESCROW_SECRET_BASE58!
       );
-      
+
       setEscrowStatus("paid");
       updateRoomData({ paidOut: true });
       toast.success("Winnings claimed!");
+      await updatePlatformStats({ won: roomData.betAmount! * 2 });
+      await updateLeaderboard({
+        player: winner.name,
+        wallet: winner.wallet,
+        won: roomData.betAmount! * 2,
+      });
+      const loser = players.find((p) => !p.isWinner);
+      if (loser) {
+        await updatePlatformStats({ lost: roomData.betAmount! });
+        await updateLeaderboard({
+          player: loser.name,
+          wallet: loser.wallet,
+          lost: roomData.betAmount!,
+        });
+      }
     } catch (e: any) {
       setEscrowStatus("error");
       setEscrowError(e.message || "Failed to claim payout.");
@@ -434,6 +457,12 @@ export default function ChromaticRingsGame() {
     setCurrentPlayer(newPlayer);
     setPlayerName("");
     setGamePhase("lobby");
+    await updatePlatformStats({ bet: roomData.betAmount!, challenge: 1 });
+    await updateLeaderboard({
+      player: newPlayer.name,
+      wallet: newPlayer.wallet,
+      challenge: 1,
+    });
 
     setEscrowStatus("funding");
     try {
@@ -531,6 +560,12 @@ export default function ChromaticRingsGame() {
     setPlayerName("");
     setJoinRoomCode("");
     setGamePhase("lobby");
+    await updatePlatformStats({ bet: roomData.betAmount! });
+    await updateLeaderboard({
+      player: newPlayer.name,
+      wallet: newPlayer.wallet,
+      challenge: 1,
+    });
   };
 
   // --- Start Game ---
@@ -695,12 +730,21 @@ export default function ChromaticRingsGame() {
         <div className="absolute inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
 
         {/* Top CTA */}
-        <Link
-          href="/start"
-          className="z-10 mt-4 mb-6 px-4 py-2 text-sm font-medium text-[#00d4aa] bg-white/10 backdrop-blur border border-[#00d4aa]/30 rounded-md hover:bg-[#00d4aa]/10 transition"
-        >
-          How to Play
-        </Link>
+        <div className='flex flex-col justify-center items-center gap-4'>
+          <PlatformStats />
+          <Link
+            href="/start"
+            className="z-10 mt-4 mb-6 px-4 py-2 text-sm font-medium text-[#00d4aa] bg-white/10 backdrop-blur border border-[#00d4aa]/30 rounded-md hover:bg-[#00d4aa]/10 transition"
+          >
+            How to Play
+          </Link>
+          {/* <Link
+            href="/stats"
+            className="z-10 text-[#00d4aa] underlined"
+          >
+            Stats
+          </Link> */}
+        </div>
 
         {/* Form Card */}
         <div className="relative z-10 w-full max-w-md bg-[#151e28] border border-[#00d4aa]/20 rounded-2xl shadow-xl p-6 space-y-6">
@@ -955,21 +999,6 @@ export default function ChromaticRingsGame() {
             <p className="text-gray-600">
               Completed in {winner?.gameState.moves} moves
             </p>
-            {isWinner && !alreadyPaidOut && (
-              <Button
-                onClick={handleClaimWinnings}
-                disabled={escrowStatus === "paying"}
-              >
-                {escrowStatus === "paying" ? "Claiming..." : "Claim Winnings"}
-              </Button>
-            )}
-
-            {escrowStatus === "error" && (
-              <p className="text-red-500 mt-2">Error: {escrowError}</p>
-            )}
-            {escrowStatus === "paid" && (
-              <p className="text-green-500 mt-2">✅ Payout successful</p>
-            )}
           </CardHeader>
 
           <CardContent className="space-y-3">
@@ -984,9 +1013,9 @@ export default function ChromaticRingsGame() {
                         <strong>{player.name}</strong> (
                         {player.wallet.slice(0, 6)}...)
                       </p>
-                      <p>
+                      {/* <p>
                         Wins: {player.wins ?? 0} | Losses: {player.losses ?? 0}
-                      </p>
+                      </p> */}
                       {player.id === roomData.winner?.id && (
                         <span className="text-green-500">🏆 Winner</span>
                       )}
@@ -1008,7 +1037,7 @@ export default function ChromaticRingsGame() {
                 {escrowStatus === "error" && (
                   <p className="text-red-500 mt-2">Error: {escrowError}</p>
                 )}
-                {escrowStatus === "paid" && (
+                {escrowStatus === "paid" && isWinner && (
                   <p className="text-green-500 mt-2">✅ Payout successful</p>
                 )}
               </>

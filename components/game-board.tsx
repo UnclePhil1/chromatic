@@ -204,7 +204,7 @@ export default function GameBoard({
             <div className="relative">
               {/* Pole rod - taller to accommodate more rings */}
               <div
-                className={`w-3 h-[240px] bg-amber-600 rounded-t-full ${
+                className={`w-3 h-[250px] bg-amber-600 rounded-t-full ${
                   dragOverPole === poleIndex ? "bg-amber-500" : ""
                 } ${invalidMove?.toPole === poleIndex ? "bg-red-500" : ""}`}
               />
@@ -224,7 +224,7 @@ export default function GameBoard({
                       onDragStart={() => handleDragStart(ring, poleIndex)}
                       className={`
                         relative flex items-center justify-center
-                        w-[27px] h-[27px] rounded-full border-4
+                        w-[30px] h-[30px] rounded-full border-4
                         ${RING_COLORS[ring.color]}
                         ${
                           isTopRing && !disabled
