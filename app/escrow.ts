@@ -1,11 +1,17 @@
 import { Connection, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import { toast } from "sonner";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
+
+export const ESCROW_PUBLIC_KEY = new PublicKey("GRMJJWnyx5s1MoyVa4NMLaJT93MoNo1ePTAs7coqhRon");
+// This is a placeholder. Replace with your actual base58-encoded secret for the above address.
+export const ESCROW_SECRET_BASE58 = process.env.NEXT_PUBLIC_PRIVATE_KEY;
 
 export async function sendBetToEscrow(
   amount: number,
   wallet: any,
   connection: Connection,
-  escrowPubkey: PublicKey
+  escrowPubkey: PublicKey = ESCROW_PUBLIC_KEY
 ) {
   if (!wallet.publicKey) throw new Error("Wallet not connected");
   const tx = new Transaction().add(
@@ -35,32 +41,49 @@ export async function sendBetToEscrow(
   }
 }
 
-export async function payoutToWinner(
+/**
+ * Payout only the game bet amount to the winner from the game's escrow wallet.
+ * @param winnerPubkey Winner's public key
+ * @param connection Solana connection
+ * @param betAmount Total bet amount (host + opponent)
+ * @param escrowSecret base58-encoded secret key for the game's escrow wallet
+ */
+export async function payoutToWinnerWithKey(
   winnerPubkey: PublicKey,
-  escrowPubkey: PublicKey,
-  walletAdapter: { publicKey: PublicKey; signTransaction: any },
-  connection: Connection
+  connection: Connection,
+  betAmount: number,
+  escrowSecret: string
 ) {
-  const escrowBalance = await connection.getBalance(escrowPubkey);
+  // Use the base58-encoded secret for this game's escrow
+  const secretKey = bs58.decode(ESCROW_SECRET_BASE58 || escrowSecret);
+  const escrowKeypair = Keypair.fromSecretKey(secretKey);
+  const escrowPubkey = escrowKeypair.publicKey;
 
-  if (escrowBalance <= 5000) throw new Error("Not enough funds to pay out");
+  const escrowBalance = await connection.getBalance(escrowPubkey);
+  if (escrowBalance < betAmount + 5000) throw new Error("Not enough funds to pay out");
 
   const tx = new Transaction().add(
     SystemProgram.transfer({
       fromPubkey: escrowPubkey,
       toPubkey: winnerPubkey,
-      lamports: escrowBalance - 5000, // reserve for fees
+      lamports: betAmount, // Only send the game bet amount
     })
   );
 
   tx.feePayer = escrowPubkey;
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  tx.recentBlockhash = blockhash;
 
-  const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-  tx.recentBlockhash = recentBlockhash;
+  // Sign with escrow keypair
+  tx.sign(escrowKeypair);
 
-  const signedTx = await walletAdapter.signTransaction(tx);
-  const signature = await connection.sendRawTransaction(signedTx.serialize());
-  await connection.confirmTransaction(signature, "confirmed");
+  const signature = await connection.sendRawTransaction(tx.serialize());
+  await connection.confirmTransaction(
+    { signature, blockhash, lastValidBlockHeight },
+    "confirmed"
+  );
 
   return signature;
 }
+
+

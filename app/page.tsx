@@ -22,10 +22,13 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@gorbagana/web3.js";
 import { toast } from "sonner";
-import { sendBetToEscrow, payoutToWinner } from "./escrow";
+import { sendBetToEscrow, payoutToWinnerWithKey, ESCROW_PUBLIC_KEY, ESCROW_SECRET_BASE58 } from "./escrow";
 import { supabase } from "@/lib/supabase";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
+
 
 // --- Types ---
 type Player = {
@@ -59,6 +62,7 @@ type RoomData = {
   lastUpdate: number;
   betAmount?: number;
   escrowWallet?: string;
+  escrowSecret?: string; // <-- Add this for per-game escrow
   paidOut?: boolean;
 };
 
@@ -187,6 +191,74 @@ export default function ChromaticRingsGame() {
   const [hostRoomCode, setHostRoomCode] = useState<string | null>(null);
   const [roomData, setRoomData] = useState<RoomData | null>(null);
 
+  // --- Persist state to localStorage ---
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const persist = {
+      gamePhase,
+      players,
+      currentPlayer,
+      playerName,
+      roomCode,
+      joinRoomCode,
+      countdownValue,
+      betAmount,
+      escrowWallet: escrowWallet?.toBase58() || null,
+      escrowStatus,
+      hostRoomCode,
+      roomData,
+    };
+    localStorage.setItem("chromatic_state", JSON.stringify(persist));
+  }, [
+    gamePhase,
+    players,
+    currentPlayer,
+    playerName,
+    roomCode,
+    joinRoomCode,
+    countdownValue,
+    betAmount,
+    escrowWallet,
+    escrowStatus,
+    hostRoomCode,
+    roomData,
+  ]);
+
+  // --- Restore state from localStorage on mount ---
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem("chromatic_state");
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        setGamePhase(state.gamePhase || "menu");
+        setPlayers(state.players || []);
+        setCurrentPlayer(state.currentPlayer || null);
+        setPlayerName(state.playerName || "");
+        setRoomCode(state.roomCode || "");
+        setJoinRoomCode(state.joinRoomCode || "");
+        setCountdownValue(state.countdownValue || 5);
+        setBetAmount(state.betAmount || "");
+        setEscrowWallet(state.escrowWallet ? new PublicKey(state.escrowWallet) : null);
+        setEscrowStatus(state.escrowStatus || "idle");
+        setHostRoomCode(state.hostRoomCode || null);
+        setRoomData(state.roomData || null);
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  // --- Auto-fill join code from URL ---
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("room");
+    if (code) {
+      setJoinRoomCode(code.toUpperCase());
+    }
+  }, []);
+
   useEffect(() => {
     if (gamePhase === "finished" && roomCode) {
       getRoom(roomCode).then(setRoomData);
@@ -221,6 +293,7 @@ export default function ChromaticRingsGame() {
           setEscrowWallet(
             roomData.escrowWallet ? new PublicKey(roomData.escrowWallet) : null
           );
+          setRoomData(roomData);
         }
         await new Promise((res) => setTimeout(res, 1500)); // Poll every 1.5s
       }
@@ -261,32 +334,32 @@ export default function ChromaticRingsGame() {
   }, [invalidMoveMessage]);
 
   // --Watching game changes on Database --
-
   useEffect(() => {
     if (hostRoomCode == null) {
       return;
     }
-
     getRoom(hostRoomCode).then((roomData) => {
       if (roomData) {
         setPlayers(roomData.players);
         setGamePhase(roomData.gamePhase);
-        // setCountdownValue(roomData.countdownValue);
       }
     });
   }, [hostRoomCode]);
 
   async function handleClaimWinnings() {
-    if (!publicKey || !signTransaction || !escrowWallet) return;
+    if (!roomData) return;
 
     setEscrowStatus("paying");
     try {
-      await payoutToWinner(
-        new PublicKey(publicKey),
-        escrowWallet,
-        { publicKey, signTransaction },
-        connection
+      const winner = players.find((p) => p.isWinner)!;
+      const winnerPubkey = new PublicKey(winner.wallet);
+      await payoutToWinnerWithKey(
+        winnerPubkey,
+        connection,
+        roomData.betAmount! * 2, // Both players' bets
+        ESCROW_SECRET_BASE58!
       );
+      
       setEscrowStatus("paid");
       updateRoomData({ paidOut: true });
       toast.success("Winnings claimed!");
@@ -322,8 +395,12 @@ export default function ChromaticRingsGame() {
     setEscrowStatus("idle");
     setEscrowError(null);
 
-    const escrowPubkey = publicKey; // For demo, host acts as escrow
-    setEscrowWallet(escrowPubkey);
+    // Generate unique escrow keypair for this game
+    const escrowKeypair = Keypair.generate();
+    const escrowPubkey = escrowKeypair.publicKey;
+    const escrowSecret = bs58.encode(escrowKeypair.secretKey);
+
+    setEscrowWallet(ESCROW_PUBLIC_KEY);
 
     const newRoomCode = generateRoomCode();
     setRoomCode(newRoomCode);
@@ -346,7 +423,8 @@ export default function ChromaticRingsGame() {
       countdownValue: 5,
       lastUpdate: Date.now(),
       betAmount: Number(betAmount) * 10 ** GOR_DECIMALS,
-      escrowWallet: escrowPubkey.toBase58(),
+      escrowWallet: ESCROW_PUBLIC_KEY.toBase58(),
+      escrowSecret, // Store for payout (test/demo only)
       paidOut: false,
     };
 
@@ -363,7 +441,7 @@ export default function ChromaticRingsGame() {
         roomData.betAmount!,
         { publicKey, signTransaction },
         connection,
-        escrowPubkey
+        ESCROW_PUBLIC_KEY
       );
       setEscrowStatus("funded");
       toast.success("Escrow funded! Waiting for both players...");
@@ -396,7 +474,6 @@ export default function ChromaticRingsGame() {
       toast.error("Room is full!");
       return;
     }
-    console.log("room data:", roomData);
     if (!roomData.betAmount) {
       toast.error("Host has not set a bet amount.");
       return;
@@ -417,7 +494,7 @@ export default function ChromaticRingsGame() {
         roomData.betAmount,
         { publicKey, signTransaction },
         connection,
-        new PublicKey(roomData.escrowWallet!)
+        ESCROW_PUBLIC_KEY
       );
       setEscrowStatus("funded");
       toast.success("Escrow funded! Waiting for both players...");
@@ -501,10 +578,12 @@ export default function ChromaticRingsGame() {
         player.id === currentPlayer.id ? winnerPlayer : player
       );
       setPlayers(finalPlayers);
+      // When a player wins, update all players and set finished phase
       updateRoomData({
         players: finalPlayers,
         gamePhase: "finished",
         winner: winnerPlayer,
+        paidOut: false,
       });
       setGamePhase("finished");
     }
@@ -517,20 +596,20 @@ export default function ChromaticRingsGame() {
         gamePhase === "finished" &&
         escrowWallet &&
         players.length === 2 &&
-        players.some((p) => p.isWinner)
+        players.some((p) => p.isWinner) &&
+        roomData?.escrowSecret
       ) {
         const winner = players.find((p) => p.isWinner)!;
-        const roomData = await getRoom(roomCode);
-        if (!roomData || roomData.paidOut) return;
-        if (!publicKey || !signTransaction) return;
-        if (publicKey.toBase58() !== roomData.escrowWallet) return;
+        const room = await getRoom(roomCode);
+        if (!room || room.paidOut) return;
         setEscrowStatus("paying");
         try {
-          await payoutToWinner(
-            new PublicKey(winner.wallet),
-            escrowWallet,
-            { publicKey, signTransaction },
-            connection
+          const winnerPubkey = new PublicKey(winner.wallet);
+          await payoutToWinnerWithKey(
+            winnerPubkey,
+            connection,
+            room.betAmount! * 2,
+            room.escrowSecret!
           );
           setEscrowStatus("paid");
           updateRoomData({ paidOut: true });
@@ -544,7 +623,7 @@ export default function ChromaticRingsGame() {
     };
     payout();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gamePhase, escrowWallet, players]);
+  }, [gamePhase, escrowWallet, players, roomData?.escrowSecret]);
 
   // --- Reset Game ---
   const resetGame = async () => {
@@ -562,6 +641,7 @@ export default function ChromaticRingsGame() {
     setEscrowWallet(null);
     setEscrowStatus("idle");
     setEscrowError(null);
+    localStorage.removeItem("chromatic_state");
   };
 
   // --- Copy helpers ---
@@ -875,7 +955,23 @@ export default function ChromaticRingsGame() {
             <p className="text-gray-600">
               Completed in {winner?.gameState.moves} moves
             </p>
+            {isWinner && !alreadyPaidOut && (
+              <Button
+                onClick={handleClaimWinnings}
+                disabled={escrowStatus === "paying"}
+              >
+                {escrowStatus === "paying" ? "Claiming..." : "Claim Winnings"}
+              </Button>
+            )}
+
+            {escrowStatus === "error" && (
+              <p className="text-red-500 mt-2">Error: {escrowError}</p>
+            )}
+            {escrowStatus === "paid" && (
+              <p className="text-green-500 mt-2">✅ Payout successful</p>
+            )}
           </CardHeader>
+
           <CardContent className="space-y-3">
             {/* --- Insert your new code here --- */}
             {roomData && (
@@ -929,8 +1025,11 @@ export default function ChromaticRingsGame() {
   // --- Game Playing (with countdown overlay) ---
   if (!currentPlayer) return null;
   return (
-    <div className="min-h-screen p-4" style={{ backgroundImage: "url('/moon.png " }}>
-        <div className="absolute h-full inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
+    <div
+      className="min-h-screen p-4"
+      style={{ backgroundImage: "url('/moon.png " }}
+    >
+      <div className="absolute h-full inset-0 bg-[#151e28]/90 backdrop-blur-sm z-0" />
       {gamePhase === "countdown" && <CountdownOverlay />}
       {invalidMoveMessage && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40">

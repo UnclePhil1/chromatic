@@ -8,7 +8,7 @@ Transaction.prototype.serialize = function () {
 };
 
 const mockWallet = {
-  publicKey: new PublicKey("BJjbVHUmjrEetwmxu3dcKXzuczSPjj8W7eokQxtHWk18"),
+  publicKey: new PublicKey("GRMJJWnyx5s1MoyVa4NMLaJT93MoNo1ePTAs7coqhRon"),
   signTransaction: async (tx: Transaction) => {
     tx.addSignature(
       mockWallet.publicKey,
